@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "hscodesearch": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "server.py"
+      ]
+    }
+  }
+}
