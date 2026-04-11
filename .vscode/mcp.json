@@ -5,6 +5,8 @@
       "command": "uv",
       "args": [
         "run",
+        "--directory",
+        "/home/budianto/Project/PCS/HSCodeSearch",
         "server.py"
       ]
     }

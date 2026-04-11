@@ -87,4 +87,5 @@ def PPLX_HSCodeAgent(product_description: str) -> str:
 
 
 if __name__ == "__main__":
+    print("HSCodeSearch MCP server is ready.", flush=True)
     mcp.run()
