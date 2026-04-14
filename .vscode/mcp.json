@@ -2,12 +2,9 @@
   "servers": {
     "hscodesearch": {
       "type": "stdio",
-      "command": "uv",
+      "command": "/Users/lscm/Project/PCS/HSCodeSearch/.venv/bin/python",
       "args": [
-        "run",
-        "--directory",
-        "/home/budianto/Project/PCS/HSCodeSearch",
-        "server.py"
+        "/Users/lscm/Project/PCS/HSCodeSearch/mcp/server/server.py"
       ]
     }
   }
