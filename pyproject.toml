@@ -3,13 +3,35 @@ name = "hscodesearch-mcp"
 version = "0.1.0"
 description = "MCP server for HS code search project"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
   "mcp[cli]>=1.6.0",
   "httpx>=0.28.1",
+  "requests>=2.32.0",
   "python-dotenv>=1.0.1",
   "playwright>=1.58.0",
+  # web-search providers
+  "jinja2>=3.1.0",
+  "duckduckgo-search>=6.0.0",
+  "perplexityai>=0.32.0",
+  "typer>=0.24.1",
+  "pip>=26.0.1",
+  "pyyaml>=6.0.3",
+  "uvicorn>=0.44.0",
+  "fastapi>=0.135.3",
 ]
+
+[project.optional-dependencies]
+# Install the providers you need:
+#   uv pip install ".[brave]"       → Brave Search
+#   uv pip install ".[tavily]"      → Tavily AI Search
+#   uv pip install ".[perplexity]"  → Perplexity AI (sonar)
+brave      = []   # only needs BRAVE_API_KEY; httpx already required
+tavily     = ["tavily-python>=0.5.0"]
+perplexity = ["perplexityai>=0.1.0"]
+serper     = []   # only needs SERPER_API_KEY; httpx already required
+jina       = []   # only needs JINA_API_KEY; httpx already required
+searxng    = []   # self-hosted; no extra package needed
 
 [build-system]
 requires = ["hatchling>=1.24.0"]
@@ -23,5 +45,6 @@ pythonpath = ["."]
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.2.0",
     "pytest>=9.0.3",
 ]
