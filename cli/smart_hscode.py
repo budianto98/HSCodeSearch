@@ -151,8 +151,9 @@ def generate(
 
     try:
         if stream:
-            async def _run_stream() -> str:
+            async def _run_stream() -> tuple[str | None, dict | None]:
                 final_output: dict | None = None
+                summary_markdown: str | None = None
                 async for event in agent.stream_finding_from_proddesc(
                     product_description=description,
                     language=language,
@@ -161,14 +162,17 @@ def generate(
                 ):
                     event_name = event.get("event", "unknown")
                     typer.echo(f"[event] {event_name}")
-                    if event_name == "final" and isinstance(event.get("data"), dict):
+                    
+                    if event_name == "summary" and isinstance(event.get("data"), dict):
+                        summary_markdown = event["data"].get("markdown")
+                    elif event_name == "final" and isinstance(event.get("data"), dict):
                         final_output = event["data"]
 
                 if final_output is None:
                     raise RuntimeError("No final event received from stream")
-                return json.dumps(final_output, ensure_ascii=True, indent=2)
+                return summary_markdown, final_output
 
-            result = asyncio.run(_run_stream())
+            summary_md, final_json = asyncio.run(_run_stream())
         else:
             result = asyncio.run(
                 agent.finding_from_proddesc(
@@ -178,11 +182,21 @@ def generate(
                     max_tokens=max_tokens,
                 )
             )
+            summary_md = None
+            final_json = json.loads(result) if result else None
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1)
 
-    typer.echo(result)
+    # Print final HS Code Classification Report
+    typer.echo("\n" + "=" * 80)
+    typer.secho("📋 HS CODE CLASSIFICATION REPORT", bold=True, fg=typer.colors.BLUE)
+    typer.echo("=" * 80 + "\n")
+    
+    if summary_md:
+        typer.echo(summary_md)
+    else:
+        typer.echo("(No summary available)")
 
 
 @app.command()

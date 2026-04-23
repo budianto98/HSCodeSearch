@@ -8,6 +8,7 @@ from DeepHSCode.agents.SmartHSCode.subagents.act_agent import ActAgent
 from DeepHSCode.agents.SmartHSCode.subagents.learn_agent import LearnAgent
 from DeepHSCode.agents.SmartHSCode.subagents.observe_agent import ObserveAgent
 from DeepHSCode.agents.SmartHSCode.subagents.plan_agent import PlanAgent
+from DeepHSCode.agents.SmartHSCode.subagents.summary_agent import SummaryAgent
 
 
 LLMCompleteCallable = Callable[..., Awaitable[str]]
@@ -71,7 +72,7 @@ class SmartHSCodeAgent:
             "history": history,
         }
 
-    def _create_subagents(self) -> tuple[ObserveAgent, PlanAgent, ActAgent, LearnAgent]:
+    def _create_subagents(self) -> tuple[ObserveAgent, PlanAgent, ActAgent, LearnAgent, SummaryAgent]:
         _agent_kwargs = dict(
             llm_complete=self._llm_complete,
             api_key=self.api_key,
@@ -82,7 +83,8 @@ class SmartHSCodeAgent:
         plan_agent = PlanAgent(**_agent_kwargs)
         act_agent = ActAgent(**_agent_kwargs)
         learn_agent = LearnAgent()
-        return observe_agent, plan_agent, act_agent, learn_agent
+        summary_agent = SummaryAgent()
+        return observe_agent, plan_agent, act_agent, learn_agent, summary_agent
 
     async def stream_finding_from_proddesc(
         self,
@@ -96,7 +98,7 @@ class SmartHSCodeAgent:
         if not description:
             raise ValueError("product_description cannot be empty")
 
-        observe_agent, plan_agent, act_agent, learn_agent = self._create_subagents()
+        observe_agent, plan_agent, act_agent, learn_agent, summary_agent = self._create_subagents()
 
         started = time.monotonic()
         history: list[dict[str, Any]] = []
@@ -225,6 +227,14 @@ class SmartHSCodeAgent:
             next_queries = plan.get("next_queries", [])
             extra_queries = [q for q in next_queries if isinstance(q, str)]
 
+        # Generate summary report
+        summary = summary_agent.run(
+            product_description=description,
+            observation=final_observation,
+            action=final_action,
+        )
+        yield {"event": "summary", "data": summary}
+
         output = self._build_output(
             description=description,
             final_action=final_action,
@@ -232,6 +242,7 @@ class SmartHSCodeAgent:
             final_stop_reason=final_stop_reason,
             history=history,
         )
+        output["summary_markdown"] = summary.get("markdown", "")
         yield {"event": "final", "data": output}
 
     async def finding_from_proddesc(

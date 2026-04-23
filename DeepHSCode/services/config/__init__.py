@@ -1,28 +1,52 @@
-"""
-Configuration Service
-=====================
+"""Configuration helpers backed by runtime YAML and the project `.env` file."""
 
-Provides project-level constants and utilities shared across DeepHSCode services.
-"""
+from .loader import (
+    PROJECT_ROOT,
+    get_agent_params,
+    get_path_from_config,
+    get_runtime_settings_dir,
+    load_config_with_main,
+    parse_language,
+    resolve_config_path,
+)
 
-from pathlib import Path
+__all__ = [
+    "PROJECT_ROOT",
+    "get_runtime_settings_dir",
+    "load_config_with_main",
+    "resolve_config_path",
+    "get_path_from_config",
+    "parse_language",
+    "get_agent_params",
+    "ResolvedLLMConfig",
+    "ResolvedEmbeddingConfig",
+    "ResolvedSearchConfig",
+    "resolve_llm_runtime_config",
+    "resolve_embedding_runtime_config",
+    "resolve_search_runtime_config",
+    "search_provider_state",
+    "NANOBOT_LLM_PROVIDERS",
+    "SUPPORTED_SEARCH_PROVIDERS",
+    "DEPRECATED_SEARCH_PROVIDERS",
+]
 
-# PROJECT_ROOT: the workspace root (four levels up from this file:
-#   DeepHSCode/services/config/__init__.py → services/config → services → DeepHSCode → root)
-PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent.parent.parent
 
-_LANG_ALIASES: dict[str, str] = {
-    "zh": "zh",
-    "cn": "zh",
-    "chinese": "zh",
-    "en": "en",
-    "english": "en",
-}
+def __getattr__(name: str):
+    """Lazy-load provider_runtime exports to avoid eager import coupling."""
+    if name in {
+        "DEPRECATED_SEARCH_PROVIDERS",
+        "NANOBOT_LLM_PROVIDERS",
+        "SUPPORTED_SEARCH_PROVIDERS",
+        "ResolvedLLMConfig",
+        "ResolvedEmbeddingConfig",
+        "ResolvedSearchConfig",
+        "resolve_embedding_runtime_config",
+        "resolve_llm_runtime_config",
+        "resolve_search_runtime_config",
+        "search_provider_state",
+    }:
+        import importlib
 
-
-def parse_language(language: str) -> str:
-    """Normalise a language string to a canonical code ('zh' or 'en')."""
-    return _LANG_ALIASES.get(language.lower().strip(), "en")
-
-
-__all__ = ["PROJECT_ROOT", "parse_language"]
+        provider_runtime = importlib.import_module(f"{__name__}.provider_runtime")
+        return getattr(provider_runtime, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from DeepHSCode.api.routers.hscode import router as hscode_router
+from DeepHSCode.api.routers.knowledge import router as knowledge_router
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -26,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(hscode_router, prefix="/api/v1", tags=["hscode"])
+app.include_router(knowledge_router, prefix="/api/v1/knowledge", tags=["knowledge"])
 
 
 @app.get("/")

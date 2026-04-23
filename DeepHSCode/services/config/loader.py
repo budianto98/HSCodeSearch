@@ -3,7 +3,7 @@
 Configuration Loader
 ====================
 
-Unified configuration loading for all DeepTutor modules.
+Unified configuration loading for all DeepHSCode modules.
 Provides YAML configuration loading, path resolution, and language parsing.
 """
 
@@ -15,12 +15,12 @@ import yaml
 
 from DeepHSCode.services.path_service import get_path_service
 
-# PROJECT_ROOT points to the actual project root directory (DeepTutor/)
-# Path(__file__) = deeptutor/services/config/loader.py
-# .parent = deeptutor/services/config/
-# .parent.parent = deeptutor/services/
-# .parent.parent.parent = deeptutor/
-# .parent.parent.parent.parent = DeepTutor/ (project root)
+# PROJECT_ROOT points to the actual project root directory (DeepHSCode/)
+# Path(__file__) = DeepHSCode/services/config/loader.py
+# .parent = DeepHSCode/services/config/
+# .parent.parent = DeepHSCode/services/
+# .parent.parent.parent = DeepHSCode/
+# .parent.parent.parent.parent = DeepHSCode/ (project root)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 

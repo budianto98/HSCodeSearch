@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import AsyncGenerator
 
 import httpx
 from fastapi import APIRouter, HTTPException
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from pydantic import BaseModel, Field
+from starlette.responses import StreamingResponse
 
 from DeepHSCode.agents.SmartHSCode import SmartHSCodeAgent
 from DeepHSCode.services.llm.config import LLMConfig, get_llm_config_from_env
@@ -154,3 +156,34 @@ async def generate_hscode(payload: HSCodeRequest) -> HSCodeResponse:
         return HSCodeResponse(result=result)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/generate/stream")
+async def generate_hscode_stream(payload: HSCodeRequest) -> StreamingResponse:
+    try:
+        config = _get_llm_config()
+        agent = SmartHSCodeAgent(
+            llm_complete=_openai_complete,
+            api_key=config.api_key,
+            base_url=config.base_url,
+            model=config.model,
+            language=payload.language,
+            web_search_tool=_web_search_tool,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    async def _event_stream() -> AsyncGenerator[bytes, None]:
+        try:
+            async for event in agent.stream_finding_from_proddesc(
+                product_description=payload.product_description,
+                language=payload.language,
+                temperature=payload.temperature,
+                max_tokens=payload.max_tokens,
+            ):
+                yield (json.dumps(event, ensure_ascii=True) + "\n").encode("utf-8")
+        except Exception as exc:
+            error_event = {"event": "error", "data": {"message": str(exc)}}
+            yield (json.dumps(error_event, ensure_ascii=True) + "\n").encode("utf-8")
+
+    return StreamingResponse(_event_stream(), media_type="application/x-ndjson")
