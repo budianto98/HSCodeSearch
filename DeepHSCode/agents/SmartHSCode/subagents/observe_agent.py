@@ -4,7 +4,7 @@ import json
 from typing import Any, Awaitable, Callable
 
 from DeepHSCode.agents.base_agent import BaseAgent
-
+from loguru import logger
 
 WebSearchCallable = Callable[..., Awaitable[dict[str, Any]]]
 
@@ -54,15 +54,17 @@ class ObserveAgent(BaseAgent):
             queries.extend([q for q in extra_queries if q])
 
         evidence: list[dict[str, Any]] = []
+        logger.opt(colors=True).info(f"<yellow>OBSERVE</yellow>: Tool available for web search: <red>{'Yes' if self._web_search else 'NO'}. Queries to run: {queries[:3]}</red>")
         if self._web_search is not None:
             for query in queries[:6]:
                 try:
                     result = await self._web_search(
                         query=query,
-                        provider="duckduckgo",
+                        provider="perplexity",
                         max_results=5,
                         verbose=False,
                     )
+                    logger.opt(colors=True).info(f"<yellow>Web search</yellow> for query: {query}\nResult: {json.dumps(result, ensure_ascii=False)}")
                 except Exception as exc:
                     evidence.append({"query": query, "error": str(exc), "items": []})
                     continue

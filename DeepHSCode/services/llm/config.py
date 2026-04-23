@@ -54,6 +54,11 @@ def get_llm_config_from_env(*, use_cache: bool = True) -> LLMConfig:
     api_key     = _strip(os.getenv("LLM_API_KEY")) or ""
     base_url    = _strip(os.getenv("LLM_HOST"))
     api_version = _strip(os.getenv("LLM_API_VERSION"))
+    print("LLM Config - Binding:", binding)
+    print("LLM Config - Model:", model)
+    print("LLM Config - API Key:", "****" if api_key else "(not set)")
+    print("LLM Config - Base URL:", base_url)
+    print("LLM Config - API Version:", api_version)
 
     if not model:
         raise LLMConfigError("LLM_MODEL not set")

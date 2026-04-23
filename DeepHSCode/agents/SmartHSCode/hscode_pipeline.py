@@ -15,6 +15,8 @@ LLMCompleteCallable = Callable[..., Awaitable[str]]
 WebSearchCallable = Callable[..., Awaitable[dict[str, Any]]]
 
 
+from loguru import logger
+
 class SmartHSCodeAgent:
     """Agentic HS6 classification pipeline using Observe-Plan-Act-Learn loops."""
 
@@ -29,6 +31,7 @@ class SmartHSCodeAgent:
         max_loops: int = 3,
         time_limit_seconds: int = 45,
     ) -> None:
+        logger.info(f"Entered SmartHSCodeAgent.__init__ with model={model}, base_url={base_url}, language={language}, max_loops={max_loops}, time_limit_seconds={time_limit_seconds}")
         self._llm_complete = llm_complete
         self.api_key = api_key
         self.base_url = base_url
@@ -39,6 +42,7 @@ class SmartHSCodeAgent:
         self.time_limit_seconds = max(5, time_limit_seconds)
 
     def _format_output(self, state: dict[str, Any]) -> str:
+        logger.info("Entered _format_output")
         return json.dumps(state, ensure_ascii=True, indent=2)
 
     def _build_output(
@@ -50,6 +54,7 @@ class SmartHSCodeAgent:
         final_stop_reason: str,
         history: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        logger.info("Entered _build_output")
         return {
             "product_description": description,
             "final": {
@@ -73,6 +78,7 @@ class SmartHSCodeAgent:
         }
 
     def _create_subagents(self) -> tuple[ObserveAgent, PlanAgent, ActAgent, LearnAgent, SummaryAgent]:
+        logger.info("Entered _create_subagents")
         _agent_kwargs = dict(
             llm_complete=self._llm_complete,
             api_key=self.api_key,
@@ -93,6 +99,7 @@ class SmartHSCodeAgent:
         temperature: float = 0.2,
         max_tokens: int = 1000,
     ) -> AsyncGenerator[dict[str, Any], None]:
+        logger.info(f"Entered stream_finding_from_proddesc with product_description={product_description}, language={language}, temperature={temperature}, max_tokens={max_tokens}")
         """Stream pipeline progress events and final output for a product description."""
         description = product_description.strip()
         if not description:
@@ -100,6 +107,8 @@ class SmartHSCodeAgent:
 
         observe_agent, plan_agent, act_agent, learn_agent, summary_agent = self._create_subagents()
 
+        logger.info("Starting Observe-Plan-Act-Learn loop")
+        
         started = time.monotonic()
         history: list[dict[str, Any]] = []
         extra_queries: list[str] = []
@@ -127,6 +136,9 @@ class SmartHSCodeAgent:
             },
         }
 
+        logger.info(f"Max loops: {self.max_loops}, Time limit: {self.time_limit_seconds} seconds")
+
+
         for loop_idx in range(1, self.max_loops + 1):
             elapsed = time.monotonic() - started
             if elapsed >= self.time_limit_seconds:
@@ -151,6 +163,8 @@ class SmartHSCodeAgent:
                 },
             }
 
+            logger.opt(colors=True).info(f"<yellow>OBSERVATION</yellow>: is_information_complete={observation.get('is_information_complete', False)}, missing_information={observation.get('missing_information', [])}, recommended_queries={observation.get('recommended_queries', [])}")
+
             plan = await plan_agent.run(
                 description,
                 observation,
@@ -170,6 +184,9 @@ class SmartHSCodeAgent:
                 },
             }
 
+            logger.opt(colors=True).info(f"<red>PLANNING</red>: should_continue={plan.get('should_continue', True)}, stop_reason={plan.get('stop_reason', '')}, next_queries={plan.get('next_queries', [])}")
+           
+
             action = await act_agent.run(
                 description,
                 observation,
@@ -187,6 +204,8 @@ class SmartHSCodeAgent:
                 },
             }
 
+            logger.opt(colors=True).info(f"<green>ACTION</green>: hs6_code={action.get('hs6_code', '')}, is_ambiguous={bool(action.get('is_ambiguous', True))}, confidence={action.get('confidence', 'low')}")  
+
             lesson = learn_agent.run(
                 loop_index=loop_idx,
                 observation=observation,
@@ -194,6 +213,8 @@ class SmartHSCodeAgent:
                 action=action,
             )
             yield {"event": "lesson", "data": {"loop": loop_idx, **lesson}}
+
+            logger.opt(colors=True).info(f"<blue>LESSON</blue>: {lesson}")
 
             step = {
                 "loop": loop_idx,
@@ -252,6 +273,7 @@ class SmartHSCodeAgent:
         temperature: float = 0.2,
         max_tokens: int = 1000,
     ) -> str:
+        logger.info(f"Entered finding_from_proddesc with product_description={product_description}, language={language}, temperature={temperature}, max_tokens={max_tokens}")
         """Run non-streaming mode and return final output JSON text."""
         final_output: dict[str, Any] | None = None
         async for event in self.stream_finding_from_proddesc(

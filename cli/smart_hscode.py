@@ -6,14 +6,22 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from loguru import logger
 
 # ---------------------------------------------------------------------------
 # .env loading — must happen before any DeepHSCode import so env vars are set
 # ---------------------------------------------------------------------------
 try:
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    print("loading .env from", env_path)
     from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=True)
+    result = load_dotenv(env_path, override=True)
+    if result:
+        print("✅ .env file loaded successfully")
+    else: 
+        print("⚠️ .env file not found or empty")
 except ImportError:
+    print("⚠️ python-dotenv not installed, skipping .env loading")
     pass
 
 
@@ -67,6 +75,7 @@ async def _openai_complete(
     temperature: float,
     max_tokens: int,
 ) -> str:
+    logger.info(f"Entered _openai_complete with model={model}, base_url={base_url}, temperature={temperature}, max_tokens={max_tokens}")
     url = base_url.rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
     if api_key:
@@ -130,6 +139,7 @@ def generate(
         help="Stream pipeline events (Observe/Plan/Act/Learn) before final output.",
     ),
 ) -> None:
+        
     """Generate HS code candidates for DESCRIPTION."""
     try:
         config = get_llm_config_from_env()
@@ -137,6 +147,7 @@ def generate(
         typer.echo(f"Configuration error: {exc}", err=True)
         raise typer.Exit(code=1)
 
+    logger.info(f"Starting SmartHSCodeAgent with model={config.model}, base_url={config.base_url}, language={language}")
     agent = SmartHSCodeAgent(
         api_key=config.api_key,
         base_url=config.base_url,
@@ -151,6 +162,7 @@ def generate(
 
     try:
         if stream:
+            logger.info("Running in streaming mode")
             async def _run_stream() -> tuple[str | None, dict | None]:
                 final_output: dict | None = None
                 summary_markdown: str | None = None
@@ -173,7 +185,9 @@ def generate(
                 return summary_markdown, final_output
 
             summary_md, final_json = asyncio.run(_run_stream())
+            logger.info("Streaming completed, processing final output")
         else:
+            logger.info
             result = asyncio.run(
                 agent.finding_from_proddesc(
                     product_description=description,
@@ -182,6 +196,7 @@ def generate(
                     max_tokens=max_tokens,
                 )
             )
+            logger.info("LLM call completed, processing result")
             summary_md = None
             final_json = json.loads(result) if result else None
     except Exception as exc:
@@ -205,6 +220,8 @@ def interactive(
     temperature: float = typer.Option(0.2, "--temperature", "-t", min=0.0, max=1.0),
     max_tokens: int = typer.Option(1000, "--max-tokens", "-m"),
 ) -> None:
+    
+    logger.info(f"Entered interactive with language={language}, temperature={temperature}, max_tokens={max_tokens}")
     """Enter an interactive loop — type a product description at each prompt."""
     try:
         config = get_llm_config_from_env()

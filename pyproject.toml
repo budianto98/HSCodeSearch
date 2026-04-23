@@ -21,6 +21,39 @@ dependencies = [
   "fastapi>=0.135.3",
   "llama-index-core>=0.14.20",
   "llama-index>=0.14.20",
+  # Below is related to opnetelemetry
+  "opentelemetry-sdk",
+  "opentelemetry-api",
+  # OTLP exporter (sends to the Collector)
+  "opentelemetry-exporter-otlp-proto-grpc",
+  # Auto-instrumentation (picks up requests, httpx, sqlalchemy, etc.)
+  "opentelemetry-instrumentation",
+  "opentelemetry-instrumentation-requests==0.62b0",
+  "opentelemetry-instrumentation-httpx==0.62b0",       # if you use httpx
+  "opentelemetry-instrumentation-fastapi==0.62b0",      # if you use FastAPI
+  "opentelemetry-instrumentation-sqlalchemy==0.62b0",   # if you use SQLAlchemy
+  # Logging bridge (forwards Python logs as OTel log records)
+  "opentelemetry-sdk",        # already included
+  "opentelemetry-instrumentation-asyncio==0.62b0",
+  "opentelemetry-instrumentation-dbapi==0.62b0",
+  "opentelemetry-instrumentation-logging==0.62b0",
+  "opentelemetry-instrumentation-sqlite3==0.62b0",
+  "opentelemetry-instrumentation-threading==0.62b0",
+  "opentelemetry-instrumentation-urllib==0.62b0",
+  "opentelemetry-instrumentation-wsgi==0.62b0",
+  "opentelemetry-instrumentation-openai-v2>=2.3b0",
+  "opentelemetry-instrumentation-aiohttp-client==0.62b0",
+  "opentelemetry-instrumentation-aiohttp-server==0.62b0",
+  "opentelemetry-instrumentation-asgi==0.62b0",
+  "opentelemetry-instrumentation-click==0.62b0",
+  "opentelemetry-instrumentation-grpc==0.62b0",
+  "opentelemetry-instrumentation-jinja2==0.62b0",
+  "opentelemetry-instrumentation-starlette==0.62b0",
+  "opentelemetry-instrumentation-system-metrics==0.62b0",
+  "opentelemetry-instrumentation-tornado==0.62b0",
+  "opentelemetry-instrumentation-tortoiseorm==0.62b0",
+  "opentelemetry-instrumentation-urllib3==0.62b0",
+  "loguru>=0.7.3",
 ]
 
 [project.optional-dependencies]
