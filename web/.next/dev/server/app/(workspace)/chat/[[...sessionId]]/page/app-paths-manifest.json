@@ -1,3 +1,0 @@
-{
-  "/(workspace)/chat/[[...sessionId]]/page": "app/(workspace)/chat/[[...sessionId]]/page.js"
-}
