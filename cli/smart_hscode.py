@@ -90,10 +90,24 @@ async def _openai_complete(
         ],
     }
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        data = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+    except httpx.HTTPStatusError as exc:
+        body = (exc.response.text or "")[:800]
+        raise RuntimeError(
+            f"LLM returned HTTP {exc.response.status_code} for {url}\n{body}"
+        ) from exc
+    except httpx.RequestError as exc:
+        # ConnectError: "All connection attempts failed" — host unreachable, wrong IP, or VPN off
+        raise RuntimeError(
+            f"Cannot connect to LLM at {url}\n"
+            f"  ({type(exc).__name__}: {exc})\n"
+            "  Check LLM_HOST in .env, that the API server is running, and that this machine "
+            "can reach the host (VPN / same LAN if using a private IP like 10.x)."
+        ) from exc
 
     return data["choices"][0]["message"]["content"]
 

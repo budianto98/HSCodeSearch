@@ -1,4 +1,4 @@
-"""SmartHSCodeAgent — Anthropic-style agentic runner for HS6 classification.
+"""SmartHSCodeAgent —  agentic runner for HS6 classification.
 
 Structure
 ---------
@@ -233,6 +233,7 @@ class SmartHSCodeAgent:
         if self._web_search is not None:
             for query in queries[:6]:
                 try:
+                    logger.opt(colors=True).info(f"<yellow>WEB SEARCH</yellow>: query={query!r} (starting)")
                     result = await self._web_search(
                         query=query,
                         provider="perplexity",
@@ -243,7 +244,9 @@ class SmartHSCodeAgent:
                     evidence.append(
                         {"query": query, "items": items[:5] if isinstance(items, list) else []}
                     )
+                    logger.opt(colors=True).info(f"<yellow>WEB SEARCH</yellow>: query={query!r}, results={len(items) if isinstance(items, list) else 0}")
                 except Exception as exc:
+                    logger.opt(colors=True).info(f"<yellow>WEB SEARCH</yellow>: query={query!r}, error={str(exc)}")
                     evidence.append({"query": query, "error": str(exc), "items": []})
 
         raw = await self._call_llm(

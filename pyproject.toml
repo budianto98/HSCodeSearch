@@ -54,6 +54,8 @@ dependencies = [
   "opentelemetry-instrumentation-tortoiseorm==0.62b0",
   "opentelemetry-instrumentation-urllib3==0.62b0",
   "loguru>=0.7.3",
+  "lightrag-hku>=1.4.15",
+  "pypdf>=6.10.2",
 ]
 
 [project.optional-dependencies]
