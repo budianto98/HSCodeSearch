@@ -214,8 +214,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+**/node_modules
+note_modules
 node_modules/*
-
+web/.next/*
+web/.*
+web/.env*
+web/node_modules/*
 
 # Related to user Data
 /data/*
