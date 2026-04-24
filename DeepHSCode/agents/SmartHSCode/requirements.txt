@@ -1,0 +1,21 @@
+# SmartHSCodeAgent — Python dependencies
+# Full project deps live in pyproject.toml (uv sync).
+# This file lists the direct runtime requirements for the agent module itself.
+
+# HTTP client for LLM calls
+httpx>=0.28.1
+
+# Structured logging
+loguru>=0.7.3
+
+# Environment variable loading
+python-dotenv>=1.0.1
+
+# MCP server / tools (web search providers)
+mcp[cli]>=1.6.0
+duckduckgo-search>=6.0.0
+perplexityai>=0.32.0
+
+# Optional provider extras (install only what you use):
+#   pip install "tavily-python>=0.5.0"   # Tavily AI search
+#   (brave, serper, jina only need an API key — no extra package)

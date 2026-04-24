@@ -1,4 +1,4 @@
-"""CLI for SmartHSCodeAgent — generate HS code candidates from a product description."""
+"""CLI for SmartHSCodeAgent — classify a product description into an HS6 code."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+
 from loguru import logger
 
 # ---------------------------------------------------------------------------
@@ -13,21 +14,18 @@ from loguru import logger
 # ---------------------------------------------------------------------------
 try:
     env_path = Path(__file__).resolve().parents[1] / ".env"
-    print("loading .env from", env_path)
     from dotenv import load_dotenv
-    result = load_dotenv(env_path, override=True)
-    if result:
-        print("✅ .env file loaded successfully")
-    else: 
-        print("⚠️ .env file not found or empty")
+    if load_dotenv(env_path, override=True):
+        logger.debug(".env loaded from {}", env_path)
+    else:
+        logger.warning(".env not found or empty at {}", env_path)
 except ImportError:
-    print("⚠️ python-dotenv not installed, skipping .env loading")
-    pass
+    logger.warning("python-dotenv not installed — skipping .env loading")
 
 
 def _bootstrap_venv_site_packages() -> None:
+    """Add the project venv to sys.path when running outside of it."""
     root = Path(__file__).resolve().parents[1]
-    # Ensure project root is importable (for DeepHSCode, modules, etc.)
     root_str = str(root)
     if root_str not in sys.path:
         sys.path.insert(0, root_str)
@@ -53,16 +51,16 @@ except ModuleNotFoundError:
     import httpx
 
 try:
-    from DeepHSCode.agents.SmartHSCode.hscode_pipeline import SmartHSCodeAgent
+    from DeepHSCode.agents.SmartHSCode.agent import SmartHSCodeAgent
     from DeepHSCode.services.llm.config import get_llm_config_from_env
 except ModuleNotFoundError:
     _bootstrap_venv_site_packages()
-    from DeepHSCode.agents.SmartHSCode.hscode_pipeline import SmartHSCodeAgent
+    from DeepHSCode.agents.SmartHSCode.agent import SmartHSCodeAgent
     from DeepHSCode.services.llm.config import get_llm_config_from_env
 
 
 # ---------------------------------------------------------------------------
-# OpenAI-compatible llm_complete callable (uses httpx, no openai package needed)
+# OpenAI-compatible llm_complete callable (httpx, no openai package required)
 # ---------------------------------------------------------------------------
 
 async def _openai_complete(
@@ -75,7 +73,8 @@ async def _openai_complete(
     temperature: float,
     max_tokens: int,
 ) -> str:
-    logger.info(f"Entered _openai_complete with model={model}, base_url={base_url}, temperature={temperature}, max_tokens={max_tokens}")
+    logger.debug("LLM call: model={}, base_url={}, temperature={}, max_tokens={}",
+                 model, base_url, temperature, max_tokens)
     url = base_url.rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
     if api_key:
@@ -100,12 +99,77 @@ async def _openai_complete(
 
 
 # ---------------------------------------------------------------------------
-# CLI
+# Output helpers
+# ---------------------------------------------------------------------------
+
+_DIVIDER = "=" * 80
+
+
+def _print_report(summary_md: str | None, final_json: dict | None) -> None:
+    """Print the classification report to stdout."""
+    typer.echo(f"\n{_DIVIDER}")
+    typer.secho("  HS CODE CLASSIFICATION REPORT", bold=True, fg=typer.colors.CYAN)
+    typer.echo(f"{_DIVIDER}\n")
+
+    if summary_md:
+        typer.echo(summary_md)
+    elif final_json:
+        # Fallback: render from the final JSON directly
+        f = final_json.get("final", {})
+        typer.secho(f"HS6 Code   : {f.get('hs6_code', 'N/A')}", bold=True)
+        typer.echo(f"Description: {f.get('hs_description', '')}")
+        typer.echo(f"Confidence : {f.get('confidence', 'low')}")
+        typer.echo(f"Ambiguous  : {f.get('is_ambiguous', True)}")
+        if f.get("ambiguity_reason"):
+            typer.echo(f"Reason     : {f['ambiguity_reason']}")
+        typer.echo(f"Stop reason: {final_json.get('stop_reason', '')}")
+        typer.echo(f"Loops used : {final_json.get('loops_used', 0)}")
+    else:
+        typer.secho("(No output produced)", fg=typer.colors.RED)
+
+
+def _print_stream_event(event_name: str, data: dict) -> None:
+    """Print a single streaming event with structured detail."""
+    if event_name == "loop_started":
+        typer.secho(
+            f"\n--- Loop {data.get('loop')} "
+            f"(elapsed {data.get('elapsed_seconds', 0):.1f}s) ---",
+            fg=typer.colors.YELLOW, bold=True,
+        )
+    elif event_name == "observation":
+        complete = data.get("is_information_complete", False)
+        missing = data.get("missing_information", [])
+        status = "complete" if complete else f"incomplete — missing: {', '.join(missing) or 'unknown'}"
+        typer.echo(f"  [observe] information {status}")
+    elif event_name == "plan":
+        cont = data.get("should_continue", True)
+        reason = data.get("stop_reason", "")
+        typer.echo(f"  [plan]    continue={cont}  reason={reason or '-'}")
+    elif event_name == "action":
+        code = data.get("hs6_code") or "–"
+        conf = data.get("confidence", "low")
+        ambig = data.get("is_ambiguous", True)
+        mark = "✅" if (not ambig and len(code) == 6) else "⚠️"
+        typer.secho(f"  [act]     {mark} hs6={code}  confidence={conf}", bold=not ambig)
+    elif event_name == "lesson":
+        typer.echo(f"  [learn]   ready_to_exit={data.get('ready_to_exit', False)}")
+    elif event_name == "summary":
+        typer.secho("\n[summary received]", fg=typer.colors.GREEN)
+    elif event_name == "final":
+        loops = data.get("loops_used", 0)
+        stop = data.get("stop_reason", "")
+        typer.secho(f"\n[done] loops={loops}  stop_reason={stop}", fg=typer.colors.GREEN, bold=True)
+    else:
+        typer.echo(f"  [{event_name}]")
+
+
+# ---------------------------------------------------------------------------
+# CLI app
 # ---------------------------------------------------------------------------
 
 app = typer.Typer(
     name="smart-hscode",
-    help="Generate HS code candidates for a product description using SmartHSCodeAgent.",
+    help="Classify a product description into an HS6 code using SmartHSCodeAgent.",
     no_args_is_help=True,
 )
 
@@ -117,55 +181,69 @@ def generate(
         help="Product description to classify (wrap in quotes if it contains spaces).",
     ),
     language: str = typer.Option(
-        "en",
-        "--language", "-l",
+        "en", "--language", "-l",
         help="Prompt language: 'en' or 'zh'.",
     ),
     temperature: float = typer.Option(
-        0.2,
-        "--temperature", "-t",
+        0.2, "--temperature", "-t",
         help="LLM sampling temperature (0–1).",
-        min=0.0,
-        max=1.0,
+        min=0.0, max=1.0,
     ),
     max_tokens: int = typer.Option(
-        1000,
-        "--max-tokens", "-m",
-        help="Maximum tokens in the LLM response.",
+        1000, "--max-tokens", "-m",
+        help="Maximum tokens per LLM response.",
+    ),
+    max_loops: int = typer.Option(
+        3, "--max-loops", "-n",
+        help="Maximum Observe-Plan-Act-Learn iterations.",
+        min=1, max=10,
+    ),
+    time_limit: int = typer.Option(
+        45, "--time-limit",
+        help="Hard wall-clock limit for the whole pipeline (seconds).",
+        min=5,
     ),
     stream: bool = typer.Option(
-        False,
-        "--stream",
-        help="Stream pipeline events (Observe/Plan/Act/Learn) before final output.",
+        False, "--stream", "-s",
+        help="Print per-phase events as they arrive (Observe / Plan / Act / Learn).",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json",
+        help="Print the full JSON result after the report.",
     ),
 ) -> None:
-        
-    """Generate HS code candidates for DESCRIPTION."""
+    """Classify DESCRIPTION and print the HS Code Classification Report."""
     try:
         config = get_llm_config_from_env()
     except Exception as exc:
         typer.echo(f"Configuration error: {exc}", err=True)
         raise typer.Exit(code=1)
 
-    logger.info(f"Starting SmartHSCodeAgent with model={config.model}, base_url={config.base_url}, language={language}")
+    typer.echo(f"Model : {config.model}")
+    typer.echo(f"Host  : {config.base_url}")
+    typer.echo(f"Input : {description}")
+    typer.echo(f"Loops : max={max_loops}  time_limit={time_limit}s\n")
+    logger.info("SmartHSCodeAgent: model={}, language={}, max_loops={}, time_limit={}s",
+                config.model, language, max_loops, time_limit)
+
     agent = SmartHSCodeAgent(
+        llm_complete=_openai_complete,
         api_key=config.api_key,
         base_url=config.base_url,
         model=config.model,
         language=language,
-        llm_complete=_openai_complete,
+        max_loops=max_loops,
+        time_limit_seconds=time_limit,
     )
 
-    typer.echo(f"Model : {config.model}")
-    typer.echo(f"Host  : {config.base_url}")
-    typer.echo(f"Input : {description}\n")
+    summary_md: str | None = None
+    final_json: dict | None = None
 
     try:
         if stream:
-            logger.info("Running in streaming mode")
             async def _run_stream() -> tuple[str | None, dict | None]:
-                final_output: dict | None = None
-                summary_markdown: str | None = None
+                _summary_md: str | None = None
+                _final_json: dict | None = None
                 async for event in agent.stream_finding_from_proddesc(
                     product_description=description,
                     language=language,
@@ -173,22 +251,19 @@ def generate(
                     max_tokens=max_tokens,
                 ):
                     event_name = event.get("event", "unknown")
-                    typer.echo(f"[event] {event_name}")
-                    
-                    if event_name == "summary" and isinstance(event.get("data"), dict):
-                        summary_markdown = event["data"].get("markdown")
-                    elif event_name == "final" and isinstance(event.get("data"), dict):
-                        final_output = event["data"]
-
-                if final_output is None:
-                    raise RuntimeError("No final event received from stream")
-                return summary_markdown, final_output
+                    data = event.get("data") or {}
+                    _print_stream_event(event_name, data)
+                    if event_name == "summary":
+                        _summary_md = data.get("markdown")
+                    elif event_name == "final":
+                        _final_json = data
+                if _final_json is None:
+                    raise RuntimeError("Stream ended without a 'final' event")
+                return _summary_md, _final_json
 
             summary_md, final_json = asyncio.run(_run_stream())
-            logger.info("Streaming completed, processing final output")
         else:
-            logger.info
-            result = asyncio.run(
+            raw = asyncio.run(
                 agent.finding_from_proddesc(
                     product_description=description,
                     language=language,
@@ -196,22 +271,21 @@ def generate(
                     max_tokens=max_tokens,
                 )
             )
-            logger.info("LLM call completed, processing result")
-            summary_md = None
-            final_json = json.loads(result) if result else None
+            final_json = json.loads(raw) if raw else None
+            if final_json:
+                summary_md = final_json.get("summary_markdown")
+
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
+        typer.echo(f"\nError: {exc}", err=True)
         raise typer.Exit(code=1)
 
-    # Print final HS Code Classification Report
-    typer.echo("\n" + "=" * 80)
-    typer.secho("📋 HS CODE CLASSIFICATION REPORT", bold=True, fg=typer.colors.BLUE)
-    typer.echo("=" * 80 + "\n")
-    
-    if summary_md:
-        typer.echo(summary_md)
-    else:
-        typer.echo("(No summary available)")
+    _print_report(summary_md, final_json)
+
+    if json_out and final_json:
+        typer.echo(f"\n{_DIVIDER}")
+        typer.secho("  FULL JSON OUTPUT", bold=True)
+        typer.echo(_DIVIDER)
+        typer.echo(json.dumps(final_json, indent=2, ensure_ascii=True))
 
 
 @app.command()
@@ -219,9 +293,13 @@ def interactive(
     language: str = typer.Option("en", "--language", "-l", help="Prompt language: 'en' or 'zh'."),
     temperature: float = typer.Option(0.2, "--temperature", "-t", min=0.0, max=1.0),
     max_tokens: int = typer.Option(1000, "--max-tokens", "-m"),
+    max_loops: int = typer.Option(3, "--max-loops", "-n", min=1, max=10,
+                                   help="Maximum Observe-Plan-Act-Learn iterations."),
+    time_limit: int = typer.Option(45, "--time-limit", min=5,
+                                    help="Wall-clock limit per query (seconds)."),
+    stream: bool = typer.Option(False, "--stream", "-s",
+                                 help="Print per-phase events while classifying."),
 ) -> None:
-    
-    logger.info(f"Entered interactive with language={language}, temperature={temperature}, max_tokens={max_tokens}")
     """Enter an interactive loop — type a product description at each prompt."""
     try:
         config = get_llm_config_from_env()
@@ -230,39 +308,76 @@ def interactive(
         raise typer.Exit(code=1)
 
     agent = SmartHSCodeAgent(
+        llm_complete=_openai_complete,
         api_key=config.api_key,
         base_url=config.base_url,
         model=config.model,
         language=language,
-        llm_complete=_openai_complete,
+        max_loops=max_loops,
+        time_limit_seconds=time_limit,
     )
 
-    typer.echo(f"SmartHSCode interactive mode  (model: {config.model})")
-    typer.echo("Type a product description and press Enter. Ctrl-C or empty line to quit.\n")
+    typer.secho(
+        f"\nSmartHSCode interactive mode  (model: {config.model}, "
+        f"max_loops={max_loops}, time_limit={time_limit}s)",
+        bold=True,
+    )
+    typer.echo("Type a product description and press Enter.  Empty line or Ctrl-C to quit.\n")
 
     while True:
         try:
-            description = typer.prompt("Description")
+            desc = typer.prompt("Description")
         except (KeyboardInterrupt, EOFError):
             typer.echo("\nBye.")
             break
 
-        if not description.strip():
+        if not desc.strip():
             typer.echo("Bye.")
             break
 
+        summary_md: str | None = None
+        final_json: dict | None = None
+
         try:
-            result = asyncio.run(
-                agent.finding_from_proddesc(
-                    product_description=description,
-                    language=language,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
+            if stream:
+                async def _run_stream_interactive() -> tuple[str | None, dict | None]:
+                    _summary_md: str | None = None
+                    _final_json: dict | None = None
+                    async for event in agent.stream_finding_from_proddesc(
+                        product_description=desc,
+                        language=language,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    ):
+                        event_name = event.get("event", "unknown")
+                        data = event.get("data") or {}
+                        _print_stream_event(event_name, data)
+                        if event_name == "summary":
+                            _summary_md = data.get("markdown")
+                        elif event_name == "final":
+                            _final_json = data
+                    return _summary_md, _final_json
+
+                summary_md, final_json = asyncio.run(_run_stream_interactive())
+            else:
+                raw = asyncio.run(
+                    agent.finding_from_proddesc(
+                        product_description=desc,
+                        language=language,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
                 )
-            )
-            typer.echo(f"\n{result}\n")
+                final_json = json.loads(raw) if raw else None
+                if final_json:
+                    summary_md = final_json.get("summary_markdown")
+
         except Exception as exc:
             typer.echo(f"Error: {exc}\n", err=True)
+            continue
+
+        _print_report(summary_md, final_json)
+        typer.echo()
 
 
 if __name__ == "__main__":

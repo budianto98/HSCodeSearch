@@ -1,0 +1,19 @@
+{
+  "[project]/components/common/MarkdownRenderer.tsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/components/common/MarkdownRenderer.tsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/components_common_RichMarkdownRenderer_tsx_d5faede3._.js",
+      "static/chunks/node_modules_micromark-core-commonmark_dev_lib_fc41dd51._.js",
+      "static/chunks/node_modules_9efb4826._.js",
+      "static/chunks/components_common_6c53dad2._.js",
+      "static/chunks/components_common_MarkdownRenderer_tsx_236b798f._.js"
+    ]
+  },
+  "[project]/components/notebook/SaveToNotebookModal.tsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/components/notebook/SaveToNotebookModal.tsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/_fc897dc3._.js",
+      "static/chunks/components_notebook_SaveToNotebookModal_tsx_236b798f._.js"
+    ]
+  }
+}

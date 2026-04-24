@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from DeepHSCode.agents.SmartHSCode.hscode_pipeline import SmartHSCodeAgent
+from DeepHSCode.agents.SmartHSCode.agent import SmartHSCodeAgent
 
 
 def _set_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -33,11 +33,11 @@ def test_process_calls_llm_with_formatted_prompt(monkeypatch: pytest.MonkeyPatch
     async def fake_llm_complete(**kwargs):
         call_count["n"] += 1
         prompt = kwargs.get("prompt", "")
-        if "OBSERVE module" in kwargs.get("system_prompt", ""):
+        if "OBSERVE phase" in kwargs.get("system_prompt", ""):
             return '{"is_information_complete": true, "missing_information": [], "product_profile": {"name": "phone"}, "confidence": "high", "recommended_queries": []}'
-        if "PLAN module" in kwargs.get("system_prompt", ""):
+        if "PLAN phase" in kwargs.get("system_prompt", ""):
             return '{"should_continue": false, "stop_reason": "ready", "next_queries": [], "focus_points": [], "plan_steps": ["done"]}'
-        if "ACT module" in kwargs.get("system_prompt", ""):
+        if "ACT phase" in kwargs.get("system_prompt", ""):
             assert "Samsung Galaxy S8 smartphone" in prompt
             return '{"hs6_code": "851713", "hs_description": "Smartphones", "is_ambiguous": false, "ambiguity_reason": "", "gir_analysis": ["GIR1"], "declaration_elements": [{"name": "product_name", "value": "Samsung Galaxy S8 smartphone", "source": "input", "required": true}], "reasoning": "fit", "confidence": "high"}'
         return "{}"
@@ -77,11 +77,11 @@ def test_process_uses_fallback_template_when_missing(monkeypatch: pytest.MonkeyP
 
     async def fake_llm_complete(**kwargs):
         calls.append(kwargs)
-        if "OBSERVE module" in kwargs.get("system_prompt", ""):
+        if "OBSERVE phase" in kwargs.get("system_prompt", ""):
             return "not-json"
-        if "PLAN module" in kwargs.get("system_prompt", ""):
+        if "PLAN phase" in kwargs.get("system_prompt", ""):
             return "not-json"
-        if "ACT module" in kwargs.get("system_prompt", ""):
+        if "ACT phase" in kwargs.get("system_prompt", ""):
             return '{"hs6_code": "", "hs_description": "", "is_ambiguous": true, "ambiguity_reason": "insufficient data", "gir_analysis": [], "declaration_elements": [], "reasoning": "n/a", "confidence": "low"}'
         return "{}"
 
@@ -101,11 +101,11 @@ def test_process_stops_after_max_loops(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_llm_env(monkeypatch)
 
     async def fake_llm_complete(**kwargs):
-        if "OBSERVE module" in kwargs.get("system_prompt", ""):
+        if "OBSERVE phase" in kwargs.get("system_prompt", ""):
             return '{"is_information_complete": false, "missing_information": ["material"], "product_profile": {}, "confidence": "low", "recommended_queries": ["query"]}'
-        if "PLAN module" in kwargs.get("system_prompt", ""):
+        if "PLAN phase" in kwargs.get("system_prompt", ""):
             return '{"should_continue": true, "stop_reason": "need_more_information", "next_queries": ["q1"], "focus_points": ["material"], "plan_steps": ["step"]}'
-        if "ACT module" in kwargs.get("system_prompt", ""):
+        if "ACT phase" in kwargs.get("system_prompt", ""):
             return '{"hs6_code": "", "hs_description": "", "is_ambiguous": true, "ambiguity_reason": "missing data", "gir_analysis": [], "declaration_elements": [], "reasoning": "", "confidence": "low"}'
         return "{}"
 
@@ -119,11 +119,11 @@ def test_process_stops_after_max_loops(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_stream_finding_from_proddesc_emits_events() -> None:
     async def fake_llm_complete(**kwargs):
-        if "OBSERVE module" in kwargs.get("system_prompt", ""):
+        if "OBSERVE phase" in kwargs.get("system_prompt", ""):
             return '{"is_information_complete": true, "missing_information": [], "product_profile": {"name": "widget"}, "confidence": "high", "recommended_queries": []}'
-        if "PLAN module" in kwargs.get("system_prompt", ""):
+        if "PLAN phase" in kwargs.get("system_prompt", ""):
             return '{"should_continue": false, "stop_reason": "ready", "next_queries": [], "focus_points": [], "plan_steps": ["done"]}'
-        if "ACT module" in kwargs.get("system_prompt", ""):
+        if "ACT phase" in kwargs.get("system_prompt", ""):
             return '{"hs6_code": "851713", "hs_description": "Smartphones", "is_ambiguous": false, "ambiguity_reason": "", "gir_analysis": ["GIR1"], "declaration_elements": [{"name": "product_name", "value": "widget", "source": "input", "required": true}], "reasoning": "fit", "confidence": "high"}'
         return "{}"
 

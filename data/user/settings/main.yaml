@@ -1,0 +1,8 @@
+# HSCodeSearch runtime configuration
+# Paths are resolved automatically by PathService; override here only if needed.
+
+logging:
+  level: INFO
+
+tools:
+  run_code: {}
