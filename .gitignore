@@ -214,7 +214,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-web/node_modules/*
+node_modules/*
 
 
 # Related to user Data
