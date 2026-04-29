@@ -54,8 +54,9 @@ dependencies = [
   "opentelemetry-instrumentation-tortoiseorm==0.62b0",
   "opentelemetry-instrumentation-urllib3==0.62b0",
   "loguru>=0.7.3",
-  "lightrag-hku>=1.4.15",
   "pypdf>=6.10.2",
+  "pdfplumber>=0.11.9",
+  "textract>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -69,6 +70,9 @@ perplexity = ["perplexityai>=0.1.0"]
 serper     = []   # only needs SERPER_API_KEY; httpx already required
 jina       = []   # only needs JINA_API_KEY; httpx already required
 searxng    = []   # self-hosted; no extra package needed
+
+[project.scripts]
+kb = "cli.kb:cli"
 
 [build-system]
 requires = ["hatchling>=1.24.0"]
