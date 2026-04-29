@@ -232,6 +232,8 @@ class LightRAGWrapper:
             embedding_func=self.embedding_func,
             llm_model_func=self.llm_model_func,
             llm_model_name=self.llm_model,
+            chunk_token_size=512,
+            chunk_overlap_token_size=50
         ) 
         rag = LightRAGModule(working_dir=rag_storage_dir, backend=backend)
 
