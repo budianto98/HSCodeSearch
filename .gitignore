@@ -225,3 +225,5 @@ web/node_modules/*
 # Related to user Data
 /data/*
 
+node_modules/
+.next/
