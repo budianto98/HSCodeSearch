@@ -227,3 +227,5 @@ web/node_modules/*
 
 node_modules/
 .next/
+uv.lock
+web/package-lock.json
