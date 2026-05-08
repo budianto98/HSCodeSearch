@@ -11,6 +11,53 @@
       "console": "integratedTerminal",
       "justMyCode": true,
       "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Run Current File",
+      "type": "python",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python3.12",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env":{
+        "PYTHONPATH": "/Users/lscm/Project/PCS/HSCodeSearch"
+      },
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Run Pipeline Agent",
+      "type": "python",
+      "request": "launch",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "module": "DeepHSCode.agents.hscode_orchestrator.pipeline_agent",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Run Web Frontend",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "envFile": "${workspaceFolder}/web/.env.local",
+      "env": {
+        "NEXT_PUBLIC_API_BASE": "http://localhost:8000"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
     }
   ]
 }

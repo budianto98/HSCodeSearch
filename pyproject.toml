@@ -57,6 +57,13 @@ dependencies = [
   "pypdf>=6.10.2",
   "pdfplumber>=0.11.9",
   "textract>=2.0.0",
+  "python-frontmatter>=1.1.0",
+  "toolregistry>=0.8.0",
+  "langchain-openai>=0.3.27",
+  "ruamel.yaml>=0.18.6",
+  "langchain-ollama>=1.1.0",
+  "lightrag-hku>=1.4.16",
+  "nest-asyncio>=1.6.0",
 ]
 
 [project.optional-dependencies]

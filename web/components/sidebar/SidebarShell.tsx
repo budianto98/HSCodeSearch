@@ -8,6 +8,7 @@ import {
   BookOpen,
   Brain,
   FileSearch,
+  FileText,
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
@@ -28,6 +29,7 @@ interface NavEntry {
 const PRIMARY_NAV: NavEntry[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/hscode-finder", label: "HSCode Finder", icon: FileSearch },
+  { href: "/traces", label: "Traces", icon: FileText },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/memory", label: "Memory", icon: Brain },
 ];
