@@ -156,6 +156,7 @@ class LightRAGWrapper:
             func=self._robust_ollama_embed,
             model_name=self.embed_model,
         )
+        # Keep model selection in LightRAG via llm_model_name to avoid passing `model` twice.
         self.llm_model_func = partial(ollama_model_complete, host=self.ollama_host)
 
     @staticmethod
@@ -309,18 +310,18 @@ def main():
     # Test 1: Initialize wrapper
     rag_wrapper = LightRAGWrapper(
         working_dir=WORKING_DIR,
-        ollama_host="http://10.103.1.23:11434",
+        ollama_host="http://10.103.1.31:11434",
         embed_model="qwen3-embedding:4b",
         llm_model="qwen3:32b-q4_K_M",
     )
 
     # Test 2: Add documents to knowledge base
-    kb_name = "test2"
-    report = rag_wrapper.add_documents(SOURCE_DIR, kb_name)
+    kb_name = "WCO_2022B"
+    # report = rag_wrapper.add_documents(SOURCE_DIR, kb_name)
 
     # Test 3: Query knowledge base
     test_queries = [
-        "What kinds of product classification rulings are in this dataset?"
+        "HS Code for Smart Watch"
     ]
 
     print("\n" + "=" * 80)

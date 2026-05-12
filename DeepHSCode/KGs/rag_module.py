@@ -7,6 +7,7 @@ import asyncio
 import concurrent.futures
 import inspect
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -254,23 +255,41 @@ class LightRAGModule:
         return "\n".join(pages).strip()
 
 
+_BG_LOOP: asyncio.AbstractEventLoop | None = None
+_BG_LOOP_THREAD: threading.Thread | None = None
+_BG_LOOP_LOCK = threading.Lock()
+
+
+def _get_background_loop() -> asyncio.AbstractEventLoop:
+    global _BG_LOOP, _BG_LOOP_THREAD
+
+    with _BG_LOOP_LOCK:
+        if _BG_LOOP is not None and _BG_LOOP.is_running():
+            return _BG_LOOP
+
+        loop = asyncio.new_event_loop()
+
+        def _run_loop() -> None:
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        thread = threading.Thread(target=_run_loop, name="lightrag-bg-loop", daemon=True)
+        thread.start()
+
+        _BG_LOOP = loop
+        _BG_LOOP_THREAD = thread
+        return loop
+
+
 def _run_maybe_awaitable(value: Any) -> Any:
     if not inspect.isawaitable(value):
         return value
 
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(value)
-
-    if loop.is_running():
-        # Notebook/REPL case: run coroutine in a worker thread with its own event loop.
-        # Running another loop in the same thread raises:
-        # "Cannot run the event loop while another loop is running".
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(asyncio.run, value)
-            return future.result()
-    return loop.run_until_complete(value)
+    # Always run on a single background loop to keep LightRAG shared locks
+    # bound to one event loop across repeated calls.
+    loop = _get_background_loop()
+    future = asyncio.run_coroutine_threadsafe(value, loop)
+    return future.result()
 
 
 # ---------------------------------------------------------------------------

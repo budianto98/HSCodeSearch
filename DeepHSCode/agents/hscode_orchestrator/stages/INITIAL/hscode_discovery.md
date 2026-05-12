@@ -12,12 +12,25 @@ Find HS Code of Product
 
 
 # instructions
-1. Use extract HS Codes from input text
-2. Find all WCO References for each HS Code
+1. Use extract HS Codes from input text and plan step
+2. Find all WCO_2022 for each HS Code from Knowledge Based KB. 
+3. Find online (web search) for Product Description
 
 
 # expected output
-a list of HS Code 
+{
+    "rag_search": {
+        "search_mode":"rag",
+        "kb":"WCO_2022",
+        "mode":"local",
+        "input":"query",
+        "data":{
+            "type": "list[str]", 
+            "description":"List Searched Result"
+        }
+    }
+}
+
 
 
 

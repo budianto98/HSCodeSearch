@@ -14,12 +14,34 @@ Plan for HSCode Discovery, Product Element Discovery and Matching.
 
 
 # instructions
-Product: {input}\n\n\nGoal:\n{goal}\n\nIdentify two:\n1. What I need to know more?\n2. How to identify the HS Code?\n\nExpected Output format:\n{output_format}
+1. query: List Query for searching Product Description in Knowledge base RAG
+2. alias: List Alias for the Product
+3. elements: List of Desclaration Element relevant to Product
 
 
 
 # expected output
-Return in Numbering format with Bullet Points.
+{
+    "query": {
+        "data":{
+            "type": "list[str]", 
+            "description":"Generate several Queries to search HS Code of Product. e.g., HS Code for [Product name] "
+        }
+    },
+    "alias": {
+        "data":{
+            "type":"list[str]",
+            "description":"List Alias for the Product Name/Description"
+        }
+    },
+    "element": {
+        "data":{
+            "type":"list[str]",
+            "description":"List of Possible Declaration Element to Search HS Code"
+        }
+    }
+}
+
 
 
 
